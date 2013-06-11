@@ -45,7 +45,6 @@ import com.vividsolutions.jts.io.WKTReader;
 import ddf.catalog.data.Metacard;
 import ddf.catalog.data.QualifiedMetacardType;
 import ddf.catalog.data.MetacardTypeRegistry;
-// import ddf.catalog.data.metacardtype.MetacardTypeRegistryImpl;
 import ddf.catalog.transform.CatalogTransformerException;
 import ddf.catalog.source.UnsupportedQueryException;
 import ddf.catalog.source.SourceUnavailableException;
@@ -95,9 +94,33 @@ public class TestJpegInputTransformer {
 
 		WKTReader reader = new WKTReader();
 		Geometry geometry = reader.read(metacard.getLocation());
-		assertEquals(geometry.getCoordinate().x, 12.488833, 0.00001);
-		assertEquals(geometry.getCoordinate().y, 41.853, 0.00001);
+		assertEquals(12.488833, geometry.getCoordinate().x, 0.00001);
+		assertEquals(41.853, geometry.getCoordinate().y, 0.00001);
+	}
 
-		// assertNotNull(metacard.getModifiedDate());
+	@Test()
+	public void testSonyDSCHXV5() throws IOException, CatalogTransformerException, UnsupportedQueryException, SourceUnavailableException, FederationException, ParseException  {
+		File file = new File(TEST_DATA_PATH + "Sony DSC-HX5V.jpg");
+		FileInputStream fis = FileUtils.openInputStream(file);
+		Metacard metacard = createTransformer().transform(fis);
+
+		assertNotNull(metacard);
+
+		assertNotNull(metacard.getCreatedDate());
+		assertThat(metacard.getCreatedDate().getYear() + 1900, is(2010));
+		assertThat(metacard.getCreatedDate().getMonth() + 1, is(7));
+		assertThat(metacard.getCreatedDate().getDate(), is(14));
+		assertThat(metacard.getCreatedDate().getHours(), is(11));
+		assertThat(metacard.getCreatedDate().getMinutes(), is(00));
+		assertThat(metacard.getCreatedDate().getSeconds(), is(23));
+
+		WKTReader reader = new WKTReader();
+		Geometry geometry = reader.read(metacard.getLocation());
+		assertEquals(-104.303846389, geometry.getCoordinate().x, 0.00001);
+		assertEquals(39.5698783333, geometry.getCoordinate().y, 0.00001);
+
+		byte[] thumbnail = metacard.getThumbnail();
+		assertNotNull(thumbnail);
+		assertThat(thumbnail.length, is(11490));
 	}
 }

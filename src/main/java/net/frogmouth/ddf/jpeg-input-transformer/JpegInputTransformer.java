@@ -35,6 +35,7 @@ import com.drew.lang.ByteArrayReader;
 import com.drew.lang.GeoLocation;
 import com.drew.metadata.exif.ExifReader;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
+import com.drew.metadata.exif.ExifThumbnailDirectory;
 import com.drew.metadata.exif.GpsDirectory;
 import com.drew.metadata.Metadata;
 import com.drew.metadata.iptc.IptcReader;
@@ -62,7 +63,7 @@ import com.vividsolutions.jts.geom.PrecisionModel;
  * 
  * @author Brad Hards
  * @author bradh@frogmouth.net
- * @since 2.2.0
+ * @since DDF 2.2.0
  */
 public class JpegInputTransformer implements InputTransformer {
 
@@ -71,18 +72,8 @@ public class JpegInputTransformer implements InputTransformer {
 	private static final String MIME_TYPE = "image/jpeg";
 	private static final String SOURCE_ID_PROPERTY = "source-id";
 	
-//	private MetacardTypeRegistry mTypeRegistry;
-
-// 	public static final SimpleDateFormat ISO_8601_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
-// 	static {
-// 		ISO_8601_DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("UTC"));
-// 	}
-
 	private static final Logger LOGGER = Logger.getLogger(JpegInputTransformer.class);
 	private CatalogFramework mCatalog;
-//	public JpegInputTransformer(MetacardTypeRegistry mTypeRegistry){
-//	    this.mTypeRegistry = mTypeRegistry;
-//	}
 	
 	/**
 	 * Transforms JPEG images with EXIF or XMP metadata into a {@link Metacard}
@@ -112,15 +103,18 @@ public class JpegInputTransformer implements InputTransformer {
 				new IptcReader().extract(new ByteArrayReader(iptcSegment), metadata);
 			}
 
-			ExifSubIFDDirectory directory;
-			metadata.getDirectory(ExifSubIFDDirectory.class);
-			directory = metadata.getDirectory(ExifSubIFDDirectory.class);
-			Date date = directory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
+			ExifSubIFDDirectory exifdirectory = metadata.getDirectory(ExifSubIFDDirectory.class);
+			Date date = exifdirectory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
 			LOGGER.info(date);
 			metacard.setCreatedDate(date);
 
+			ExifThumbnailDirectory thumbnailDirectory = metadata.getDirectory(ExifThumbnailDirectory.class);
+			if ((thumbnailDirectory != null) && (thumbnailDirectory.hasThumbnailData())) {
+				metacard.setThumbnail(thumbnailDirectory.getThumbnailData());
+			}
+
 			GpsDirectory gpsDirectory = metadata.getDirectory(GpsDirectory.class);
-			if (gpsDirectory.getGeoLocation() != null) {
+			if ((gpsDirectory != null) && (gpsDirectory.getGeoLocation() != null)) {
 				GeoLocation location = gpsDirectory.getGeoLocation();
 
 				GeometryFactory geomFactory = new GeometryFactory(new PrecisionModel(com.vividsolutions.jts.geom.PrecisionModel.FLOATING), 4326);
@@ -134,6 +128,10 @@ public class JpegInputTransformer implements InputTransformer {
 			} else {
 				metacard.setResourceURI(null);
 			}
+
+			metacard.setContentTypeName(MIME_TYPE);
+			metacard.setTitle("(Unnamed JPEG image)");
+			metacard.setAttribute("metadata", "<xml>DDF</xml>");
 		} catch (JpegProcessingException e) {
 			LOGGER.error(e);
 			throw new CatalogTransformerException(e);
