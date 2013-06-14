@@ -129,7 +129,9 @@ public class JpegInputTransformer implements InputTransformer {
 			}
 
 			metacard.setContentTypeName(MIME_TYPE);
+			// TODO: this should produce a real name
 			metacard.setTitle("(Unnamed JPEG image)");
+			// TODO: use this element to hold an XML mapping (schema TBA) of the rest of the metadata
 			metacard.setMetadata("<xml>DDF</xml>");
 		} catch (JpegProcessingException e) {
 			LOGGER.error(e);
