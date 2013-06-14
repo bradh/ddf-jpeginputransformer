@@ -70,7 +70,6 @@ public class JpegInputTransformer implements InputTransformer {
 	private static final String METACARD_TYPE_PROPERTY_KEY = "metacard-type";
 	private static final String ID = "jpeg";
 	private static final String MIME_TYPE = "image/jpeg";
-	private static final String SOURCE_ID_PROPERTY = "source-id";
 	
 	private static final Logger LOGGER = Logger.getLogger(JpegInputTransformer.class);
 	private CatalogFramework mCatalog;
@@ -84,7 +83,7 @@ public class JpegInputTransformer implements InputTransformer {
 	}
 
 	@Override
-	public Metacard transform(InputStream input, String uri) throws IOException, CatalogTransformerException {
+	public Metacard transform(InputStream input, String id) throws IOException, CatalogTransformerException {
 
 		if (input == null) {
 			throw new CatalogTransformerException("Cannot transform null input.");
@@ -123,10 +122,10 @@ public class JpegInputTransformer implements InputTransformer {
 				metacard.setLocation(position.toWkt());
 			}
 
-			if (uri != null) {
-				metacard.setResourceURI(URI.create(uri));
+			if (id != null) {
+				metacard.setId(id);
 			} else {
-				metacard.setResourceURI(null);
+				metacard.setId(null);
 			}
 
 			metacard.setContentTypeName(MIME_TYPE);
