@@ -195,9 +195,7 @@ public class JpegInputTransformer implements InputTransformer {
 		mixMetadata.setImageCaptureMetadata(imageCaptureMetadataType);
 
 		BasicDigitalObjectInformationType.FormatDesignation formatDesignation = new BasicDigitalObjectInformationType.FormatDesignation();
-		StringType mime = new StringType();
-		mime.setValue(MIME_TYPE); // Future: see if we can read this from the metadata
-		formatDesignation.setFormatName(mime);
+		formatDesignation.setFormatName(stringToStringType(MIME_TYPE)); // Future: see if we can read this from the metadata
 		basicDigitalObjectInformation.setFormatDesignation(formatDesignation);
 
 		// Test hack:
@@ -217,11 +215,17 @@ public class JpegInputTransformer implements InputTransformer {
 	private ImageCaptureMetadataType createImageCaptureMetadata(Metadata metadata) throws JAXBException {
 		ImageCaptureMetadataType imageCaptureMetadataType = new ImageCaptureMetadataType();
 		ExifIFD0Directory exifdirectory = metadata.getDirectory(ExifIFD0Directory.class);
-		StringType make = new StringType();
-		make.setValue(exifdirectory.getString(ExifIFD0Directory.TAG_MAKE));
+
 		ImageCaptureMetadataType.DigitalCameraCapture digitalCameraCapture = new ImageCaptureMetadataType.DigitalCameraCapture();
-		digitalCameraCapture.setDigitalCameraManufacturer(make);
+		digitalCameraCapture.setDigitalCameraManufacturer(stringToStringType(exifdirectory.getString(ExifIFD0Directory.TAG_MAKE)));
 		imageCaptureMetadataType.setDigitalCameraCapture(digitalCameraCapture);
 		return imageCaptureMetadataType;
+	}
+
+	// Convenience API for creating a MIX v2.0 StringType when we have a plain Java String
+	private StringType stringToStringType(String string) {
+		StringType st = new StringType();
+		st.setValue(string);
+		return st;
 	}
 }
