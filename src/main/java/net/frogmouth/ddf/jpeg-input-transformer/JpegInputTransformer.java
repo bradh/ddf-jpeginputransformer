@@ -16,13 +16,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.BufferedInputStream;
 import java.io.Serializable;
+import java.io.StringWriter;
 import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 import java.util.Date;
 
 import javax.xml.bind.DatatypeConverter;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
+import javax.xml.namespace.QName;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
@@ -58,6 +63,11 @@ import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.PrecisionModel;
+
+import gov.loc.mix.v20.BasicDigitalObjectInformationType;
+import gov.loc.mix.v20.ImageCaptureMetadataType;
+import gov.loc.mix.v20.Mix;
+import gov.loc.mix.v20.StringType;
 
 /**
  * Converts JPEG images (with EXIF/XML metadata) into a Metacard.
@@ -178,20 +188,14 @@ public class JpegInputTransformer implements InputTransformer {
 
 	private void convertImageMetadataToMetacardMetadata(Metadata metadata) throws JAXBException {
 		// TODO: use this element to hold an XML mapping (schema TBA) of the rest of the metadata
-		gov.loc.mix.v20.Mix mixMetadata = new gov.loc.mix.v20.Mix();
-		gov.loc.mix.v20.BasicDigitalObjectInformationType basicDigitalObjectInformation = new gov.loc.mix.v20.BasicDigitalObjectInformationType();
+		Mix mixMetadata = new Mix();
+		BasicDigitalObjectInformationType basicDigitalObjectInformation = new BasicDigitalObjectInformationType();
 
-		gov.loc.mix.v20.ImageCaptureMetadataType imageCaptureMetadataType = new gov.loc.mix.v20.ImageCaptureMetadataType();
-		ExifIFD0Directory exifdirectory = metadata.getDirectory(ExifIFD0Directory.class);
-		gov.loc.mix.v20.StringType make = new gov.loc.mix.v20.StringType();
-		make.setValue(exifdirectory.getString(ExifIFD0Directory.TAG_MAKE));
-		gov.loc.mix.v20.ImageCaptureMetadataType.DigitalCameraCapture digitalCameraCapture = new gov.loc.mix.v20.ImageCaptureMetadataType.DigitalCameraCapture();
-		digitalCameraCapture.setDigitalCameraManufacturer(make);
-		imageCaptureMetadataType.setDigitalCameraCapture(digitalCameraCapture);
+		ImageCaptureMetadataType imageCaptureMetadataType = createImageCaptureMetadata(metadata);
 		mixMetadata.setImageCaptureMetadata(imageCaptureMetadataType);
 
-		gov.loc.mix.v20.BasicDigitalObjectInformationType.FormatDesignation formatDesignation = new gov.loc.mix.v20.BasicDigitalObjectInformationType.FormatDesignation();
-		gov.loc.mix.v20.StringType mime = new gov.loc.mix.v20.StringType();
+		BasicDigitalObjectInformationType.FormatDesignation formatDesignation = new BasicDigitalObjectInformationType.FormatDesignation();
+		StringType mime = new StringType();
 		mime.setValue(MIME_TYPE); // Future: see if we can read this from the metadata
 		formatDesignation.setFormatName(mime);
 		basicDigitalObjectInformation.setFormatDesignation(formatDesignation);
@@ -203,11 +207,21 @@ public class JpegInputTransformer implements InputTransformer {
 
 		mixMetadata.setBasicDigitalObjectInformation(basicDigitalObjectInformation);
 
-		java.io.StringWriter writer = new java.io.StringWriter();
-		javax.xml.bind.JAXBContext context = javax.xml.bind.JAXBContext.newInstance(gov.loc.mix.v20.Mix.class);
-		javax.xml.bind.Marshaller m = context.createMarshaller();
-		m.marshal(new javax.xml.bind.JAXBElement(new javax.xml.namespace.QName(gov.loc.mix.v20.Mix.class.getSimpleName()), gov.loc.mix.v20.Mix.class, mixMetadata), writer);
+		StringWriter writer = new StringWriter();
+		JAXBContext context = JAXBContext.newInstance(Mix.class);
+		Marshaller m = context.createMarshaller();
+		m.marshal(new JAXBElement(new QName(Mix.class.getSimpleName()), Mix.class, mixMetadata), writer);
 		mMetacard.setMetadata(writer.toString());
 	}
 
+	private ImageCaptureMetadataType createImageCaptureMetadata(Metadata metadata) throws JAXBException {
+		ImageCaptureMetadataType imageCaptureMetadataType = new ImageCaptureMetadataType();
+		ExifIFD0Directory exifdirectory = metadata.getDirectory(ExifIFD0Directory.class);
+		StringType make = new StringType();
+		make.setValue(exifdirectory.getString(ExifIFD0Directory.TAG_MAKE));
+		ImageCaptureMetadataType.DigitalCameraCapture digitalCameraCapture = new ImageCaptureMetadataType.DigitalCameraCapture();
+		digitalCameraCapture.setDigitalCameraManufacturer(make);
+		imageCaptureMetadataType.setDigitalCameraCapture(digitalCameraCapture);
+		return imageCaptureMetadataType;
+	}
 }
