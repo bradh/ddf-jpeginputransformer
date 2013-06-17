@@ -22,6 +22,7 @@ import java.util.TimeZone;
 import java.util.Date;
 
 import javax.xml.bind.DatatypeConverter;
+import javax.xml.bind.JAXBException;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
@@ -34,6 +35,7 @@ import com.drew.imaging.jpeg.JpegSegmentReader;
 import com.drew.lang.ByteArrayReader;
 import com.drew.lang.GeoLocation;
 import com.drew.metadata.exif.ExifReader;
+import com.drew.metadata.exif.ExifIFD0Directory;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
 import com.drew.metadata.exif.ExifThumbnailDirectory;
 import com.drew.metadata.exif.GpsDirectory;
@@ -45,7 +47,6 @@ import ddf.catalog.data.AttributeType.AttributeFormat;
 import ddf.catalog.data.BasicTypes;
 import ddf.catalog.data.Metacard;
 import ddf.catalog.data.MetacardImpl;
-// import ddf.catalog.data.MetacardType;
 import ddf.catalog.data.QualifiedMetacardType;
 import ddf.catalog.data.MetacardTypeRegistry;
 import ddf.catalog.CatalogFramework;
@@ -73,6 +74,7 @@ public class JpegInputTransformer implements InputTransformer {
 	
 	private static final Logger LOGGER = Logger.getLogger(JpegInputTransformer.class);
 	private CatalogFramework mCatalog;
+	private MetacardImpl mMetacard;
 	
 	/**
 	 * Transforms JPEG images with EXIF or XMP metadata into a {@link Metacard}
@@ -89,56 +91,37 @@ public class JpegInputTransformer implements InputTransformer {
 			throw new CatalogTransformerException("Cannot transform null input.");
 		}
 
-		MetacardImpl metacard = new MetacardImpl(BasicTypes.BASIC_METACARD);
+		mMetacard = new MetacardImpl(BasicTypes.BASIC_METACARD);
 		try {
-			JpegSegmentReader segmentReader = new JpegSegmentReader(input, true);
-			byte[] exifSegment = segmentReader.readSegment(JpegSegmentReader.SEGMENT_APP1);
-			byte[] iptcSegment = segmentReader.readSegment(JpegSegmentReader.SEGMENT_APPD);
-			Metadata metadata = new Metadata();
-			if (exifSegment != null) {
-				new ExifReader().extract(new ByteArrayReader(exifSegment), metadata);
-			}
-			if (iptcSegment != null) {
-				new IptcReader().extract(new ByteArrayReader(iptcSegment), metadata);
-			}
+			Metadata metadata = extractImageMetadata(input);
 
-			ExifSubIFDDirectory exifdirectory = metadata.getDirectory(ExifSubIFDDirectory.class);
-			Date date = exifdirectory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
-			LOGGER.info(date);
-			metacard.setCreatedDate(date);
+			processExifSubIFDDirectory(metadata);
 
-			ExifThumbnailDirectory thumbnailDirectory = metadata.getDirectory(ExifThumbnailDirectory.class);
-			if ((thumbnailDirectory != null) && (thumbnailDirectory.hasThumbnailData())) {
-				metacard.setThumbnail(thumbnailDirectory.getThumbnailData());
-			}
+			generateThumbnail(metadata);
 
-			GpsDirectory gpsDirectory = metadata.getDirectory(GpsDirectory.class);
-			if ((gpsDirectory != null) && (gpsDirectory.getGeoLocation() != null)) {
-				GeoLocation location = gpsDirectory.getGeoLocation();
-
-				GeometryFactory geomFactory = new GeometryFactory(new PrecisionModel(com.vividsolutions.jts.geom.PrecisionModel.FLOATING), 4326);
-				Geometry point = geomFactory.createPoint(new Coordinate(location.getLongitude(), location.getLatitude()));
-				CompositeGeometry position = CompositeGeometry.getCompositeGeometry(point);
-				metacard.setLocation(position.toWkt());
-			}
+			processGPSDirectory(metadata);
 
 			if (id != null) {
-				metacard.setId(id);
+				mMetacard.setId(id);
 			} else {
-				metacard.setId(null);
+				mMetacard.setId(null);
 			}
 
-			metacard.setContentTypeName(MIME_TYPE);
+			mMetacard.setContentTypeName(MIME_TYPE);
+
 			// TODO: this should produce a real name
-			metacard.setTitle("(Unnamed JPEG image)");
-			// TODO: use this element to hold an XML mapping (schema TBA) of the rest of the metadata
-			metacard.setMetadata("<xml>DDF</xml>");
+			mMetacard.setTitle("(Unnamed JPEG image)");
+
+			convertImageMetadataToMetacardMetadata(metadata);
 		} catch (JpegProcessingException e) {
 			LOGGER.error(e);
 			throw new CatalogTransformerException(e);
-		}
+		} catch (JAXBException e) {
+			LOGGER.error(e);
+			throw new CatalogTransformerException(e);
+		}    
 
-		return metacard;
+		return mMetacard;
 	}
 
 	@Override
@@ -148,6 +131,83 @@ public class JpegInputTransformer implements InputTransformer {
 
 	public void setCatalog(CatalogFramework catalog) {
 	    this.mCatalog = catalog;
+	}
+
+	private Metadata extractImageMetadata(InputStream input) throws JpegProcessingException {
+		JpegSegmentReader segmentReader = new JpegSegmentReader(input, true);
+		byte[] exifSegment = segmentReader.readSegment(JpegSegmentReader.SEGMENT_APP1);
+		byte[] iptcSegment = segmentReader.readSegment(JpegSegmentReader.SEGMENT_APPD);
+		Metadata metadata = new Metadata();
+		if (exifSegment != null) {
+			new ExifReader().extract(new ByteArrayReader(exifSegment), metadata);
+		}
+		if (iptcSegment != null) {
+			new IptcReader().extract(new ByteArrayReader(iptcSegment), metadata);
+		}
+		return metadata;
+	}
+
+	private void processExifSubIFDDirectory(Metadata metadata) {
+		ExifSubIFDDirectory exifdirectory = metadata.getDirectory(ExifSubIFDDirectory.class);
+		if (exifdirectory != null)
+		{
+			Date date = exifdirectory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
+			mMetacard.setCreatedDate(date);
+		}
+	}
+
+	private void generateThumbnail(Metadata metadata) {
+		ExifThumbnailDirectory thumbnailDirectory = metadata.getDirectory(ExifThumbnailDirectory.class);
+		if ((thumbnailDirectory != null) && (thumbnailDirectory.hasThumbnailData())) {
+			mMetacard.setThumbnail(thumbnailDirectory.getThumbnailData());
+		}
+		// Future: we could generate a thumbnail from the source image if we don't have one here.
+	}
+
+	private void processGPSDirectory(Metadata metadata) {
+		GpsDirectory gpsDirectory = metadata.getDirectory(GpsDirectory.class);
+		if ((gpsDirectory != null) && (gpsDirectory.getGeoLocation() != null)) {
+			GeoLocation location = gpsDirectory.getGeoLocation();
+
+			GeometryFactory geomFactory = new GeometryFactory(new PrecisionModel(com.vividsolutions.jts.geom.PrecisionModel.FLOATING), 4326);
+			Geometry point = geomFactory.createPoint(new Coordinate(location.getLongitude(), location.getLatitude()));
+			CompositeGeometry position = CompositeGeometry.getCompositeGeometry(point);
+			mMetacard.setLocation(position.toWkt());
+		}
+	}
+
+	private void convertImageMetadataToMetacardMetadata(Metadata metadata) throws JAXBException {
+		// TODO: use this element to hold an XML mapping (schema TBA) of the rest of the metadata
+		gov.loc.mix.v20.Mix mixMetadata = new gov.loc.mix.v20.Mix();
+		gov.loc.mix.v20.BasicDigitalObjectInformationType basicDigitalObjectInformation = new gov.loc.mix.v20.BasicDigitalObjectInformationType();
+
+		gov.loc.mix.v20.ImageCaptureMetadataType imageCaptureMetadataType = new gov.loc.mix.v20.ImageCaptureMetadataType();
+		ExifIFD0Directory exifdirectory = metadata.getDirectory(ExifIFD0Directory.class);
+		gov.loc.mix.v20.StringType make = new gov.loc.mix.v20.StringType();
+		make.setValue(exifdirectory.getString(ExifIFD0Directory.TAG_MAKE));
+		gov.loc.mix.v20.ImageCaptureMetadataType.DigitalCameraCapture digitalCameraCapture = new gov.loc.mix.v20.ImageCaptureMetadataType.DigitalCameraCapture();
+		digitalCameraCapture.setDigitalCameraManufacturer(make);
+		imageCaptureMetadataType.setDigitalCameraCapture(digitalCameraCapture);
+		mixMetadata.setImageCaptureMetadata(imageCaptureMetadataType);
+
+		gov.loc.mix.v20.BasicDigitalObjectInformationType.FormatDesignation formatDesignation = new gov.loc.mix.v20.BasicDigitalObjectInformationType.FormatDesignation();
+		gov.loc.mix.v20.StringType mime = new gov.loc.mix.v20.StringType();
+		mime.setValue(MIME_TYPE); // Future: see if we can read this from the metadata
+		formatDesignation.setFormatName(mime);
+		basicDigitalObjectInformation.setFormatDesignation(formatDesignation);
+
+		// Test hack:
+		gov.loc.mix.v20.NonNegativeIntegerType dummyFileSize = new gov.loc.mix.v20.NonNegativeIntegerType();
+		dummyFileSize.setValue(new java.math.BigInteger("10000")); // FIXME: this should be actual data
+		basicDigitalObjectInformation.setFileSize(dummyFileSize);
+
+		mixMetadata.setBasicDigitalObjectInformation(basicDigitalObjectInformation);
+
+		java.io.StringWriter writer = new java.io.StringWriter();
+		javax.xml.bind.JAXBContext context = javax.xml.bind.JAXBContext.newInstance(gov.loc.mix.v20.Mix.class);
+		javax.xml.bind.Marshaller m = context.createMarshaller();
+		m.marshal(new javax.xml.bind.JAXBElement(new javax.xml.namespace.QName(gov.loc.mix.v20.Mix.class.getSimpleName()), gov.loc.mix.v20.Mix.class, mixMetadata), writer);
+		mMetacard.setMetadata(writer.toString());
 	}
 
 }
