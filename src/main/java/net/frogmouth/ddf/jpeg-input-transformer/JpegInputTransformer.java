@@ -84,7 +84,6 @@ public class JpegInputTransformer implements InputTransformer {
 	
 	private static final Logger LOGGER = Logger.getLogger(JpegInputTransformer.class);
 	private CatalogFramework mCatalog;
-	private MetacardImpl mMetacard;
 	
 	/**
 	 * Transforms JPEG images with EXIF or XMP metadata into a {@link Metacard}
@@ -101,28 +100,28 @@ public class JpegInputTransformer implements InputTransformer {
 			throw new CatalogTransformerException("Cannot transform null input.");
 		}
 
-		mMetacard = new MetacardImpl(BasicTypes.BASIC_METACARD);
+		MetacardImpl metacard = new MetacardImpl(BasicTypes.BASIC_METACARD);
 		try {
 			Metadata metadata = extractImageMetadata(input);
 
-			processExifSubIFDDirectory(metadata);
+			processExifSubIFDDirectory(metadata, metacard);
 
-			generateThumbnail(metadata);
+			generateThumbnail(metadata, metacard);
 
-			processGPSDirectory(metadata);
+			processGPSDirectory(metadata, metacard);
 
 			if (id != null) {
-				mMetacard.setId(id);
+				metacard.setId(id);
 			} else {
-				mMetacard.setId(null);
+				metacard.setId(null);
 			}
 
-			mMetacard.setContentTypeName(MIME_TYPE);
+			metacard.setContentTypeName(MIME_TYPE);
 
 			// TODO: this should produce a real name
-			mMetacard.setTitle("(Unnamed JPEG image)");
+			metacard.setTitle("(Unnamed JPEG image)");
 
-			convertImageMetadataToMetacardMetadata(metadata);
+			convertImageMetadataToMetacardMetadata(metadata, metacard);
 		} catch (JpegProcessingException e) {
 			LOGGER.error(e);
 			throw new CatalogTransformerException(e);
@@ -131,7 +130,7 @@ public class JpegInputTransformer implements InputTransformer {
 			throw new CatalogTransformerException(e);
 		}    
 
-		return mMetacard;
+		return metacard;
 	}
 
 	@Override
@@ -157,24 +156,24 @@ public class JpegInputTransformer implements InputTransformer {
 		return metadata;
 	}
 
-	private void processExifSubIFDDirectory(Metadata metadata) {
+	private void processExifSubIFDDirectory(Metadata metadata, MetacardImpl metacard) {
 		ExifSubIFDDirectory exifdirectory = metadata.getDirectory(ExifSubIFDDirectory.class);
 		if (exifdirectory != null)
 		{
 			Date date = exifdirectory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
-			mMetacard.setCreatedDate(date);
+			metacard.setCreatedDate(date);
 		}
 	}
 
-	private void generateThumbnail(Metadata metadata) {
+	private void generateThumbnail(Metadata metadata, MetacardImpl metacard) {
 		ExifThumbnailDirectory thumbnailDirectory = metadata.getDirectory(ExifThumbnailDirectory.class);
 		if ((thumbnailDirectory != null) && (thumbnailDirectory.hasThumbnailData())) {
-			mMetacard.setThumbnail(thumbnailDirectory.getThumbnailData());
+			metacard.setThumbnail(thumbnailDirectory.getThumbnailData());
 		}
 		// Future: we could generate a thumbnail from the source image if we don't have one here.
 	}
 
-	private void processGPSDirectory(Metadata metadata) {
+	private void processGPSDirectory(Metadata metadata, MetacardImpl metacard) {
 		GpsDirectory gpsDirectory = metadata.getDirectory(GpsDirectory.class);
 		if ((gpsDirectory != null) && (gpsDirectory.getGeoLocation() != null)) {
 			GeoLocation location = gpsDirectory.getGeoLocation();
@@ -182,11 +181,11 @@ public class JpegInputTransformer implements InputTransformer {
 			GeometryFactory geomFactory = new GeometryFactory(new PrecisionModel(com.vividsolutions.jts.geom.PrecisionModel.FLOATING), 4326);
 			Geometry point = geomFactory.createPoint(new Coordinate(location.getLongitude(), location.getLatitude()));
 			CompositeGeometry position = CompositeGeometry.getCompositeGeometry(point);
-			mMetacard.setLocation(position.toWkt());
+			metacard.setLocation(position.toWkt());
 		}
 	}
 
-	private void convertImageMetadataToMetacardMetadata(Metadata metadata) throws JAXBException {
+	private void convertImageMetadataToMetacardMetadata(Metadata metadata, MetacardImpl metacard) throws JAXBException {
 		// TODO: use this element to hold an XML mapping (schema TBA) of the rest of the metadata
 		Mix mixMetadata = new Mix();
 		BasicDigitalObjectInformationType basicDigitalObjectInformation = new BasicDigitalObjectInformationType();
@@ -209,7 +208,7 @@ public class JpegInputTransformer implements InputTransformer {
 		JAXBContext context = JAXBContext.newInstance(Mix.class);
 		Marshaller m = context.createMarshaller();
 		m.marshal(new JAXBElement(new QName(Mix.class.getSimpleName()), Mix.class, mixMetadata), writer);
-		mMetacard.setMetadata(writer.toString());
+		metacard.setMetadata(writer.toString());
 	}
 
 	private ImageCaptureMetadataType createImageCaptureMetadata(Metadata metadata) throws JAXBException {
