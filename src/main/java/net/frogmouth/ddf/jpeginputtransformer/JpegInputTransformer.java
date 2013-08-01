@@ -209,6 +209,7 @@ public class JpegInputTransformer implements InputTransformer {
 		try {
 			Metadata metadata = JpegMetadataReader.readMetadata(input);
 		
+			processExifIFD0Directory(metadata, metacard);
 			processExifSubIFDDirectory(metadata, metacard);
 
 			generateThumbnail(metadata, metacard);
@@ -260,6 +261,17 @@ public class JpegInputTransformer implements InputTransformer {
 		}
 	}
 
+	private void processExifIFD0Directory(Metadata metadata, MetacardImpl metacard) {
+		ExifIFD0Directory exifdirectory = metadata.getDirectory(ExifIFD0Directory.class);
+		if (exifdirectory != null)
+		{
+			if (exifdirectory.containsTag(ExifIFD0Directory.TAG_DATETIME)) {
+				Date date = exifdirectory.getDate(ExifIFD0Directory.TAG_DATETIME);
+				metacard.setModifiedDate(date);
+			}
+		}
+	}
+	
 	private void processIptcDirectory(Metadata metadata, MetacardImpl metacard) {
 		IptcDirectory iptcdirectory = metadata.getDirectory(IptcDirectory.class);
 		if (iptcdirectory != null)

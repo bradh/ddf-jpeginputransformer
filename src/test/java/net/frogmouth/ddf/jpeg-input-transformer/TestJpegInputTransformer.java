@@ -91,6 +91,8 @@ public class TestJpegInputTransformer {
 		assertThat(metacard.getCreatedDate().getHours(), is(14));
 		assertThat(metacard.getCreatedDate().getMinutes(), is(33));
 		assertThat(metacard.getCreatedDate().getSeconds(), is(39));
+		
+		assertEquals(metacard.getCreatedDate(), metacard.getModifiedDate());
 
 		WKTReader reader = new WKTReader();
 		Geometry geometry = reader.read(metacard.getLocation());
@@ -113,6 +115,14 @@ public class TestJpegInputTransformer {
 		assertThat(metacard.getCreatedDate().getHours(), is(11));
 		assertThat(metacard.getCreatedDate().getMinutes(), is(00));
 		assertThat(metacard.getCreatedDate().getSeconds(), is(23));
+
+		assertNotNull(metacard.getModifiedDate());
+		assertThat(metacard.getModifiedDate().getYear() + 1900, is(2010));
+		assertThat(metacard.getModifiedDate().getMonth() + 1, is(7));
+		assertThat(metacard.getModifiedDate().getDate(), is(14));
+		assertThat(metacard.getModifiedDate().getHours(), is(11));
+		assertThat(metacard.getModifiedDate().getMinutes(), is(00));
+		assertThat(metacard.getModifiedDate().getSeconds(), is(23));
 
 		WKTReader reader = new WKTReader();
 		Geometry geometry = reader.read(metacard.getLocation());
