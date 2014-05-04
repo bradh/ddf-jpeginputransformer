@@ -16,49 +16,32 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.BufferedInputStream;
 import java.io.Serializable;
-import java.io.StringWriter;
-import java.lang.Object;
-import java.net.URI;
-import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 import java.util.Date;
 
-import javax.xml.bind.DatatypeConverter;
 import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
 import javax.xml.namespace.QName;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 
-import com.drew.imaging.ImageMetadataReader;
-import com.drew.imaging.ImageProcessingException;
 import com.drew.imaging.jpeg.JpegMetadataReader;
 import com.drew.imaging.jpeg.JpegProcessingException;
-import com.drew.imaging.jpeg.JpegSegmentReader;
-import com.drew.lang.ByteArrayReader;
 import com.drew.lang.GeoLocation;
 import com.drew.metadata.Directory;
-import com.drew.metadata.exif.ExifReader;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
 import com.drew.metadata.exif.ExifThumbnailDirectory;
 import com.drew.metadata.exif.GpsDirectory;
 import com.drew.metadata.Metadata;
 import com.drew.metadata.MetadataException;
-import com.drew.metadata.iptc.IptcReader;
 import com.drew.metadata.iptc.IptcDirectory;
 import com.drew.metadata.Tag;
 
-import ddf.catalog.data.AttributeDescriptor;
-import ddf.catalog.data.AttributeType.AttributeFormat;
 import ddf.catalog.data.BasicTypes;
 import ddf.catalog.data.Metacard;
 import ddf.catalog.data.MetacardImpl;
 import ddf.catalog.data.QualifiedMetacardType;
-import ddf.catalog.data.MetacardTypeRegistry;
 import ddf.catalog.CatalogFramework;
 import ddf.catalog.transform.CatalogTransformerException;
 import ddf.catalog.transform.InputTransformer;
@@ -91,7 +74,6 @@ enum datatype
  */
 public class JpegInputTransformer implements InputTransformer {
 
-	private static final String METACARD_TYPE_PROPERTY_KEY = "metacard-type";
 	private static final String ID = "jpeg";
 	private static final String MIME_TYPE = "image/jpeg";
 	private static final String NS_EXIF_EX = "http://cipa.jp/exif/1.0/";
