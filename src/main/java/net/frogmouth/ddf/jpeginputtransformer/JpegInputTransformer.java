@@ -75,7 +75,12 @@ import com.adobe.xmp.XMPMetaFactory;
 import com.adobe.xmp.XMPSchemaRegistry;
 import com.adobe.xmp.options.SerializeOptions;
 
-enum datatype { dtString, dtInt, dtRational };
+enum datatype
+{
+    DataTypeString,
+    DataTypeInteger,
+    DataTypeRational
+};
 
 /**
  * Converts JPEG images (with EXIF/XML metadata) into a Metacard.
@@ -252,39 +257,29 @@ public class JpegInputTransformer implements InputTransformer {
 
 	private void processExifSubIFDDirectory(Metadata metadata, MetacardImpl metacard) {
 		ExifSubIFDDirectory exifdirectory = metadata.getDirectory(ExifSubIFDDirectory.class);
-		if (exifdirectory != null)
-		{
-			if (exifdirectory.containsTag(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL)) {
-				Date date = exifdirectory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
-				metacard.setCreatedDate(date);
-			}
-		}
+		if ((exifdirectory != null) && (exifdirectory.containsTag(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL))) {
+            Date date = exifdirectory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
+            metacard.setCreatedDate(date);
+        }
 	}
 
 	private void processExifIFD0Directory(Metadata metadata, MetacardImpl metacard) {
 		ExifIFD0Directory exifdirectory = metadata.getDirectory(ExifIFD0Directory.class);
-		if (exifdirectory != null)
-		{
-			if (exifdirectory.containsTag(ExifIFD0Directory.TAG_DATETIME)) {
-				Date date = exifdirectory.getDate(ExifIFD0Directory.TAG_DATETIME);
-				metacard.setModifiedDate(date);
-			}
+		if ((exifdirectory != null) && (exifdirectory.containsTag(ExifIFD0Directory.TAG_DATETIME))) {
+            Date date = exifdirectory.getDate(ExifIFD0Directory.TAG_DATETIME);
+            metacard.setModifiedDate(date);
 		}
 	}
 	
 	private void processIptcDirectory(Metadata metadata, MetacardImpl metacard) {
 		IptcDirectory iptcdirectory = metadata.getDirectory(IptcDirectory.class);
-		if (iptcdirectory != null)
-		{
+		if (iptcdirectory != null) {
 			if (iptcdirectory.containsTag(IptcDirectory.TAG_HEADLINE)) {
 				String title = iptcdirectory.getString(IptcDirectory.TAG_HEADLINE);
-				if (title.length() != 0)
-				{
+				if (title.length() != 0) {
 				      metacard.setTitle(title);
 				}
-			}
-
-			else if (iptcdirectory.containsTag(IptcDirectory.TAG_CAPTION)) {
+			} else if (iptcdirectory.containsTag(IptcDirectory.TAG_CAPTION)) {
 				String title = iptcdirectory.getString(IptcDirectory.TAG_CAPTION);
 				metacard.setTitle(title);
 			}
