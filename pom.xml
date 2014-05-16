@@ -136,7 +136,6 @@
 							org.osgi.service.blueprint,
 							com.vividsolutions.jts.*,
 							org.apache.commons.io,
-							org.apache.log4j,
 							org.apache.commons.lang,
 							org.osgi.service.cm,
 							javax.xml.parsers,
@@ -144,6 +143,7 @@
 							javax.xml.datatype,
 							javax.xml.bind,
 							javax.xml.namespace,
+                            org.slf4j,
 							org.w3c.dom,
 							org.xml.sax
 						</Import-Package>

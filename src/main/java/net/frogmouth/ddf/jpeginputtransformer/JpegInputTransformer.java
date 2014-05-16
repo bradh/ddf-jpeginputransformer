@@ -17,8 +17,6 @@ import java.util.Date;
 
 import javax.xml.bind.JAXBException;
 
-import org.apache.log4j.Logger;
-
 import com.drew.imaging.jpeg.JpegMetadataReader;
 import com.drew.imaging.jpeg.JpegProcessingException;
 import com.drew.lang.GeoLocation;
@@ -51,6 +49,9 @@ import com.adobe.xmp.XMPMetaFactory;
 import com.adobe.xmp.XMPSchemaRegistry;
 import com.adobe.xmp.options.SerializeOptions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 enum datatype {
     DATATYPE_STRING,
     DATATYPE_INTEGER,
@@ -71,7 +72,7 @@ public class JpegInputTransformer implements InputTransformer {
     private static final String NS_EXIF_EX = "http://cipa.jp/exif/1.0/";
     private static final String ERRORS_PROPERTY = "errors";
 
-    private static final Logger LOGGER = Logger.getLogger(JpegInputTransformer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(JpegInputTransformer.class);
     private CatalogFramework mCatalog;
 
     private static XMPSchemaRegistry registry = XMPMetaFactory.getSchemaRegistry();
@@ -208,13 +209,13 @@ public class JpegInputTransformer implements InputTransformer {
 
             convertImageMetadataToMetacardMetadata(metadata, metacard);
         } catch (JpegProcessingException e) {
-            LOGGER.warn(e);
+            LOGGER.warn("JPEG Exception processing metadata", e);
             throw new CatalogTransformerException(e);
         } catch (JAXBException e) {
-            LOGGER.warn(e);
+            LOGGER.warn("JAXB Exception processing metadata", e);
             throw new CatalogTransformerException(e);
         } catch (MetadataException e) {
-            LOGGER.warn(e);
+            LOGGER.warn("Metadata Exception processing metadata", e);
             throw new CatalogTransformerException(e);
         }
 
@@ -320,10 +321,10 @@ public class JpegInputTransformer implements InputTransformer {
             }
             metacard.setMetadata(XMPMetaFactory.serializeToString(xmpMeta, new SerializeOptions()));
         } catch (com.adobe.xmp.XMPException e) {
-            LOGGER.warn(e);
+            LOGGER.warn("XMP Exception setting metadata", e);
             throw new CatalogTransformerException(e);
         } catch (com.drew.metadata.MetadataException e) {
-            LOGGER.warn(e);
+            LOGGER.warn("Metadata Exception setting metadata", e);
             throw new CatalogTransformerException(e);
         }
     }
